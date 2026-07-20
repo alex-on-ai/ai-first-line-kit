@@ -55,6 +55,15 @@ replaced by a `REPLACE_ME` / `YOUR_...` placeholder.
 - **Error workflow:** in the main workflow's settings, set the Error Workflow to
   `automation-errors`.
 
+### Booking link
+
+The proposal page's "suggested call slots" chips link to a scheduling page
+(`https://cal.com/YOUR_HANDLE/YOUR_EVENT` in `proposal-pages.json`, node
+"Render proposal page"). Point it at your Cal.com / Calendly event. One nuance
+from the course: for COLD outreach, offer two concrete time slots in the
+message, not a calendar link; on an inbound proposal page the calendar link is
+the right call, and the slot labels double as suggestions.
+
 ## 5. Publish
 
 Publish (activate) each of the three workflows. The webhooks go live.
