@@ -76,7 +76,7 @@ Guide the user (confirm before anything paid or public):
 
 1. **n8n**: n8n Cloud (fastest) or self-host (Docker, ~$7/mo VPS). They need a
    public HTTPS URL for the webhooks.
-2. **Import** the three workflows in `workflows/`. Every credential shows as
+2. **Import** the four workflows in `workflows/`. Every credential shows as
    `REPLACE_ME` and every host/id as a `YOUR_...` placeholder — that is
    intentional. Walk them through connecting:
    - **OpenAI** (or their LLM) credential -> the two model nodes.
@@ -93,10 +93,17 @@ Guide the user (confirm before anything paid or public):
      fields (they currently read `YOUR_AUTOMATION_SECRET`).
 3. **Publish** each workflow (this activates the webhooks).
 
-Telegram gotcha to preserve: on every message-sending node, `parse_mode` is set
-to `HTML` and dynamic text is HTML-escaped. Do **not** remove this — without it,
-a Google Doc URL containing an underscore, or a `&` in a page URL, will make
-Telegram reject the message.
+Telegram gotchas to preserve:
+- On every message-sending node, `parse_mode` is set to `HTML` and dynamic text
+  is HTML-escaped. Do **not** remove this — without it, a Google Doc URL
+  containing an underscore, or a `&` in a page URL, makes Telegram reject the
+  message with "can't parse entities".
+- The approve/reject buttons are real inline callback buttons handled by the
+  `telegram-buttons` workflow (a Telegram Trigger). Activating it registers the
+  bot's webhook to n8n; a bot can have only **one** webhook, so this bot must not
+  be shared with any other integration (site chat widgets re-register webhooks
+  and silently kill the buttons). Restrict the trigger's `chatIds` to the
+  owner's chat.
 
 ---
 

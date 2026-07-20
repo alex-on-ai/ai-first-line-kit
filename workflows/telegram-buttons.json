@@ -1,0 +1,317 @@
+{
+  "name": "HighCraft — telegram buttons",
+  "nodes": [
+    {
+      "id": "daf04087-d481-47e3-892c-7c19ece66051",
+      "name": "Button tapped",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        96
+      ],
+      "parameters": {
+        "updates": [
+          "callback_query"
+        ],
+        "additionalFields": {
+          "chatIds": "YOUR_TELEGRAM_CHAT_ID"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_ME",
+          "name": "YOUR Telegram account"
+        }
+      },
+      "webhookId": "d7c2f7ef-a723-46d6-880c-0b97c06d354a"
+    },
+    {
+      "id": "ddca0880-b358-4805-a097-0da1b2c6cec3",
+      "name": "Parse tap",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        96
+      ],
+      "parameters": {
+        "jsCode": "// Decode the inline-button callback: \"apr:<rowId>\" or \"rej:<rowId>\".\nconst cb = $input.first().json.callback_query || {};\nconst data = String(cb.data || '');\nconst m = data.match(/^(apr|rej):(\\d+)$/);\nfunction esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}\nreturn [{ json: {\n  valid: !!m,\n  decision: m ? m[1] : '',\n  row_id: m ? Number(m[2]) : 0,\n  query_id: String(cb.id || ''),\n  chat_id: String(cb.message?.chat?.id || ''),\n  message_id: cb.message?.message_id || 0,\n  orig_text_esc: esc(cb.message?.text || '')\n}}];"
+      }
+    },
+    {
+      "id": "a0dfbb59-bb65-47ce-b665-03a471081c60",
+      "name": "Valid tap?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        96
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.valid }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "58b034e4-4394-494b-9d5a-92293685521b",
+      "name": "Get approval row",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_SALES_LEADS_TABLE_ID",
+          "cachedResultName": "sales_leads"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $(\"Parse tap\").first().json.row_id }}"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "38d17461-481c-4845-b90a-b42ab7baadc0",
+      "name": "Build resume call",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Turn the stored resume handle + the tapped decision into one GET URL.\nconst p = $('Parse tap').first().json;\nconst rows = $input.all().map(i => i.json).filter(r => r && r.id !== undefined);\nconst url = rows[0]?.approval_resume_url || '';\nconst approved = p.decision === 'apr';\nconst resume_call = url ? url + (url.includes('?') ? '&' : '?') + 'approved=' + approved : '';\nreturn [{ json: { ...p, approved, resume_call } }];"
+      }
+    },
+    {
+      "id": "b81da5a0-4df5-4a39-900f-956997fe2433",
+      "name": "Resume main flow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "url": "={{ $json.resume_call || \"https://YOUR_N8N_HOST/webhook-waiting/0\" }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "5d2d0a42-b69d-4fc7-a16f-5f0e3467b79f",
+      "name": "Answer tap",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1344,
+        0
+      ],
+      "parameters": {
+        "resource": "callback",
+        "operation": "answerQuery",
+        "queryId": "={{ $(\"Parse tap\").first().json.query_id }}",
+        "additionalFields": {
+          "text": "={{ $json.statusCode === 200 ? ($(\"Parse tap\").first().json.decision === \"apr\" ? \"Approved. Drafting the proposal...\" : \"Rejected. Archived.\") : \"This card was already handled.\" }}"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_ME",
+          "name": "YOUR Telegram account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "webhookId": "e2656a50-b7d6-4d93-9623-12f74fa139bb"
+    },
+    {
+      "id": "c863c067-ed3a-429a-af71-480b3a9d7441",
+      "name": "Update card",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1568,
+        0
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "editMessageText",
+        "messageType": "message",
+        "chatId": "={{ $(\"Parse tap\").first().json.chat_id }}",
+        "messageId": "={{ $(\"Parse tap\").first().json.message_id }}",
+        "text": "={{ $(\"Parse tap\").first().json.orig_text_esc + \"\\n\\n\" + ($(\"Resume main flow\").first().json.statusCode === 200 ? ($(\"Parse tap\").first().json.decision === \"apr\" ? \"✅ APPROVED\" : \"❌ REJECTED\") : \"⚠️ Already handled earlier\") }}",
+        "replyMarkup": "none",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_ME",
+          "name": "YOUR Telegram account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "webhookId": "49c84a47-bf8b-4065-9c3b-887ef38c299c"
+    },
+    {
+      "id": "76ac06ae-a06c-4e5b-b7e5-893e4f9b47cd",
+      "name": "Answer unknown tap",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        192
+      ],
+      "parameters": {
+        "resource": "callback",
+        "operation": "answerQuery",
+        "queryId": "={{ $(\"Parse tap\").first().json.query_id }}",
+        "additionalFields": {
+          "text": "Unrecognized button."
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_ME",
+          "name": "YOUR Telegram account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "webhookId": "44a298e1-0e57-40b6-8cf1-07fe6e429aaa"
+    }
+  ],
+  "connections": {
+    "Button tapped": {
+      "main": [
+        [
+          {
+            "node": "Parse tap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse tap": {
+      "main": [
+        [
+          {
+            "node": "Valid tap?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid tap?": {
+      "main": [
+        [
+          {
+            "node": "Get approval row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Answer unknown tap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get approval row": {
+      "main": [
+        [
+          {
+            "node": "Build resume call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build resume call": {
+      "main": [
+        [
+          {
+            "node": "Resume main flow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resume main flow": {
+      "main": [
+        [
+          {
+            "node": "Answer tap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer tap": {
+      "main": [
+        [
+          {
+            "node": "Update card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

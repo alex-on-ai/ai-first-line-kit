@@ -487,47 +487,6 @@
     },
     {
       "parameters": {
-        "operation": "sendAndWait",
-        "chatId": "={{ $(\"Owner chat config\").item.json.owner_chat_id }}",
-        "message": "=New inquiry: {{ ($(\"Normalize inquiry\").first().json.name+\"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") }} ({{ ($(\"Normalize inquiry\").first().json.company+\"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") }})\nScore: {{ $(\"Qualify against ICP\").first().json.output.score }}/100 · {{ (($(\"Qualify against ICP\").first().json.output.timing ?? \"\").toUpperCase()+\"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") }}\nSignals: {{ (($(\"Qualify against ICP\").first().json.output.signals ?? []).join(\", \") || \"none\"+\"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") }}\nWhy: {{ ($(\"Qualify against ICP\").first().json.output.why+\"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") }}{{ $(\"Qualify against ICP\").first().json.output.company_summary ? \"\\nAbout them: \" + ($(\"Qualify against ICP\").first().json.output.company_summary+\"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") : \"\" }}\n----------\nReply draft:\n{{ ($(\"Qualify against ICP\").first().json.output.reply_draft+\"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") }}\n----------\nApprove = draft the proposal. Decline = archive. Nothing is sent to the lead automatically.",
-        "approvalOptions": {
-          "values": {
-            "approvalType": "double",
-            "approveLabel": "Approve reply",
-            "disapproveLabel": "Reject"
-          }
-        },
-        "options": {
-          "limitWaitTime": {
-            "values": {
-              "resumeAmount": 7,
-              "resumeUnit": "days"
-            }
-          },
-          "appendAttribution": false
-        },
-        "additionalFields": {
-          "parse_mode": "HTML"
-        }
-      },
-      "id": "1a9d0032-f349-495c-bd37-dfe0cee15e24",
-      "name": "Ask owner approval",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        2064,
-        176
-      ],
-      "webhookId": "fe4dec12-cca8-4d12-9e76-095ef27615ec",
-      "credentials": {
-        "telegramApi": {
-          "id": "REPLACE_ME",
-          "name": "YOUR Telegram account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
@@ -537,7 +496,7 @@
           },
           "conditions": [
             {
-              "leftValue": "={{ $json.data?.approved ?? false }}",
+              "leftValue": "={{ ($json.query?.approved ?? \"false\") === \"true\" }}",
               "operator": {
                 "type": "boolean",
                 "operation": "true",
@@ -555,7 +514,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2288,
+        2560,
         176
       ]
     },
@@ -1227,7 +1186,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ lead_id: Number($(\"Prep context\").first().json.site_lead_id) || 0, ai_status: \"proposal_drafted\", proposal_page_url: $(\"Prepare proposal assets\").first().json.proposal_page_url, proposal_doc_url: ($(\"Create proposal doc\").isExecuted && $(\"Create proposal doc\").first().json.id) ? (\"https://docs.google.com/document/d/\" + $(\"Create proposal doc\").first().json.id + \"/edit\") : undefined }) }}",
+        "jsonBody": "={{ JSON.stringify({ lead_id: Number($(\"Prep context\").first().json.site_lead_id) || 0, ai_status: \"proposal_drafted\", proposal_page_url: $(\"Prepare proposal assets\").first().json.proposal_page_url, proposal_doc_url: $(\"Create proposal doc\").first().json.id ? (\"https://docs.google.com/document/d/\" + $(\"Create proposal doc\").first().json.id + \"/edit\") : undefined }) }}",
         "options": {
           "timeout": 8000,
           "response": {
@@ -1281,6 +1240,127 @@
       "maxTries": 2,
       "waitBetweenTries": 1000,
       "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_SALES_LEADS_TABLE_ID",
+          "cachedResultName": "sales_leads"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyValue": "={{ $(\"Log lead\").first().json.id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "approval_resume_url": "={{ $execution.resumeUrl }}"
+          },
+          "schema": [
+            {
+              "id": "approval_resume_url",
+              "displayName": "approval_resume_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "savehandle001",
+      "name": "Save approval handle",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2032,
+        176
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $(\"Owner chat config\").first().json.owner_chat_id }}",
+        "text": "=New inquiry: {{ ($(\"Normalize inquiry\").first().json.name+\"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") }} ({{ ($(\"Normalize inquiry\").first().json.company+\"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") }})\nScore: {{ $(\"Qualify against ICP\").first().json.output.score }}/100 · {{ (($(\"Qualify against ICP\").first().json.output.timing ?? \"\").toUpperCase()+\"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") }}\nSignals: {{ (($(\"Qualify against ICP\").first().json.output.signals ?? []).join(\", \") || \"none\"+\"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") }}\nWhy: {{ ($(\"Qualify against ICP\").first().json.output.why+\"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") }}{{ $(\"Qualify against ICP\").first().json.output.company_summary ? \"\\nAbout them: \" + ($(\"Qualify against ICP\").first().json.output.company_summary+\"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") : \"\" }}\n----------\nReply draft:\n{{ ($(\"Qualify against ICP\").first().json.output.reply_draft+\"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") }}\n----------\nApprove = draft the proposal. Reject = archive. Nothing is sent to the lead automatically.",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "✅ Approve",
+                    "additionalFields": {
+                      "callback_data": "=apr:{{ $(\"Log lead\").first().json.id }}"
+                    }
+                  },
+                  {
+                    "text": "❌ Reject",
+                    "additionalFields": {
+                      "callback_data": "=rej:{{ $(\"Log lead\").first().json.id }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "sendcard0001",
+      "name": "Send approval card",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2208,
+        176
+      ],
+      "webhookId": "sendcard-wh-0001",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_ME",
+          "name": "YOUR Telegram account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "GET",
+        "limitWaitTime": true,
+        "limitType": "afterTimeInterval",
+        "resumeAmount": 7,
+        "resumeUnit": "days",
+        "options": {}
+      },
+      "id": "waitdecision1",
+      "name": "Wait for decision",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2384,
+        176
+      ],
+      "webhookId": "wait-approval-0001"
     }
   ],
   "connections": {
@@ -1343,7 +1423,7 @@
       "main": [
         [
           {
-            "node": "Ask owner approval",
+            "node": "Save approval handle",
             "type": "main",
             "index": 0
           }
@@ -1351,17 +1431,6 @@
         [
           {
             "node": "Send decline card",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ask owner approval": {
-      "main": [
-        [
-          {
-            "node": "Owner approved?",
             "type": "main",
             "index": 0
           }
@@ -1625,6 +1694,39 @@
         [
           {
             "node": "Report rejected to site",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save approval handle": {
+      "main": [
+        [
+          {
+            "node": "Send approval card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send approval card": {
+      "main": [
+        [
+          {
+            "node": "Wait for decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for decision": {
+      "main": [
+        [
+          {
+            "node": "Owner approved?",
             "type": "main",
             "index": 0
           }

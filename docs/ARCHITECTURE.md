@@ -21,7 +21,10 @@ Lead received (webhook)
   -> Log lead                    (insert into the sales_leads Data Table)
   -> Report verdict to site      (POST the verdict to your site callback, signed)
   -> Fit?                        (score>=55 AND fit==true)
-       true  -> Ask owner approval        (Telegram double-button approve/reject)
+       true  -> Save approval handle      (store this execution's resume URL on the row)
+              -> Send approval card       (Telegram message with real inline buttons:
+                                           callback_data "apr:<row>" / "rej:<row>")
+              -> Wait for decision        (Wait node, resume-on-webhook, 7-day limit)
                  -> Owner approved?
                       true  -> Draft proposal        (LLM, strict JSON schema)
                                 -> Prepare proposal assets   (token + page URL + text)
@@ -42,6 +45,22 @@ the proposal as Telegram text and the page link still works.
 
 Reliability: every LLM / HTTP / Telegram / Data-Table node has retry-on-fail and
 a timeout. The workflow's `errorWorkflow` points at `automation-errors`.
+
+## `telegram-buttons`
+
+A Telegram Trigger (updates: `callback_query`, restricted to the owner's chat id)
+that makes the approval buttons real: parse the tap (`apr:<row>` / `rej:<row>`)
+-> read the row's stored resume URL -> GET it with `?approved=true|false` (which
+resumes the waiting main execution) -> answer the callback (instant toast) ->
+edit the card to "✅ APPROVED" / "❌ REJECTED" and drop the buttons.
+
+Two gotchas baked in:
+- **One webhook per bot.** Activating the Telegram Trigger registers the bot's
+  webhook to n8n. If any other integration (a site chat widget, another tool)
+  re-registers that bot's webhook, the buttons silently die. One bot, one job.
+- A double-tap or a tap on an already-handled card answers "already handled"
+  instead of erroring (the resume call is `neverError` and the toast text keys
+  off its status code).
 
 ## `proposal-pages`
 
@@ -66,7 +85,7 @@ fit (boolean), score (number), why, reply_draft, decline_draft,
 status, proposal_url,
 signals, timing, company_summary,
 site_lead_id, callback_url, project_type, budget, timeline,
-proposal_json, page_token, proposal_page_url
+proposal_json, page_token, proposal_page_url, approval_resume_url
 ```
 
 `status` values: `new`, `proposal_drafted`, `owner_rejected`,

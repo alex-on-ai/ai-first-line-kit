@@ -74,6 +74,7 @@ workflows/
   sales-first-line.json   the main n8n workflow (import this)
   proposal-pages.json     serves the branded proposal page
   automation-errors.json  Telegram alert on any failure
+  telegram-buttons.json   makes the approve/reject buttons real (callback handler)
 site/
   estimate-forward.md     how to wire a website form to the webhook
   proposal-page.html      standalone proposal-page template (reference)
