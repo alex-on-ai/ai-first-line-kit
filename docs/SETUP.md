@@ -55,6 +55,16 @@ replaced by a `REPLACE_ME` / `YOUR_...` placeholder.
 - **Error workflow:** in the main workflow's settings, set the Error Workflow to
   `automation-errors`.
 
+### Branding
+
+The proposal page ("Render proposal page" node in `proposal-pages.json`) ships
+in a light editorial style: serif display headings (Source Serif 4), Inter
+body, one accent color, and a dark feature card for the first-step offer. To
+rebrand: change the wordmark in the header markup, then swap the accent
+(`#F2617A`), the dark card color (`#003D4F`), and the fonts link. Matching
+your website's design system here is worth the 15 minutes: the lead sees this
+page as YOUR page, not a tool's output.
+
 ### Booking link
 
 The proposal page's "suggested call slots" chips link to a scheduling page
