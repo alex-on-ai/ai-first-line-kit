@@ -1196,7 +1196,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ lead_id: Number($(\"Prep context\").first().json.site_lead_id) || 0, ai_status: \"proposal_drafted\", proposal_page_url: $(\"Prepare proposal assets\").first().json.proposal_page_url, proposal_doc_url: $(\"Create proposal doc\").first().json.id ? (\"https://docs.google.com/document/d/\" + $(\"Create proposal doc\").first().json.id + \"/edit\") : undefined }) }}",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
         "options": {
           "timeout": 8000,
           "response": {
@@ -1405,6 +1405,19 @@
       "position": [
         880,
         272
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build the drafted-report payload in plain JS (the inline jsonBody expression\n// was silently rejected by the expression parser; a Code node has no such limits).\nconst pc = $('Prep context').first().json;\nconst pa = $('Prepare proposal assets').first().json;\nlet doc = '';\ntry {\n  const id = $('Create proposal doc').first().json.id;\n  if (id) doc = 'https://docs.google.com/document/d/' + id + '/edit';\n} catch (e) {}\nconst payload = {\n  lead_id: Number(pc.site_lead_id) || 0,\n  ai_status: 'proposal_drafted',\n  proposal_page_url: pa.proposal_page_url,\n};\nif (doc) payload.proposal_doc_url = doc;\nreturn [{ json: { payload } }];"
+      },
+      "id": "builddraftpay1",
+      "name": "Build drafted payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4192,
+        320
       ]
     }
   ],
@@ -1716,7 +1729,7 @@
       "main": [
         [
           {
-            "node": "Report drafted to site",
+            "node": "Build drafted payload",
             "type": "main",
             "index": 0
           }
@@ -1727,7 +1740,7 @@
       "main": [
         [
           {
-            "node": "Report drafted to site",
+            "node": "Build drafted payload",
             "type": "main",
             "index": 0
           }
@@ -1794,6 +1807,17 @@
         [
           {
             "node": "Owner chat config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build drafted payload": {
+      "main": [
+        [
+          {
+            "node": "Report drafted to site",
             "type": "main",
             "index": 0
           }
