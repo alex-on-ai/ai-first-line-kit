@@ -1,0 +1,58 @@
+{
+  "name": "HighCraft — automation errors",
+  "nodes": [
+    {
+      "id": "c677016a-2c21-433c-aa2d-070837989160",
+      "name": "Workflow failed",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "bfff0c21-1a5c-4b16-b403-39bc489275b6",
+      "name": "Alert owner",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ 'Automation error: ' + ($json.workflow?.name ?? 'unknown workflow') + '\\nNode: ' + ($json.execution?.lastNodeExecuted ?? '?') + '\\nError: ' + ($json.execution?.error?.message ?? 'no message') + '\\nExecution: ' + ($json.execution?.url ?? $json.execution?.id ?? '') }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_ME",
+          "name": "YOUR Telegram account"
+        }
+      },
+      "webhookId": "a03af1dd-506b-45c7-9419-9220c5d1c5b8"
+    }
+  ],
+  "connections": {
+    "Workflow failed": {
+      "main": [
+        [
+          {
+            "node": "Alert owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "name": "HighCraft — proposal pages",
+  "nodes": [
+    {
+      "id": "e714d645-0375-482f-9dc1-e0e252d96064",
+      "name": "Proposal page hit",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "proposal",
+        "responseMode": "responseNode",
+        "options": {
+          "ignoreBots": false
+        }
+      },
+      "webhookId": "2acde07e-4b13-408e-9b05-fd6a7426413a"
+    },
+    {
+      "id": "fabf3a3a-12a2-4184-a6d2-c6de8328bf5f",
+      "name": "Get proposal row",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_SALES_LEADS_TABLE_ID",
+          "cachedResultName": "sales_leads"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.query.id }}"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "524bbe7a-5974-46b4-926c-5098f93ecf31",
+      "name": "Render proposal page",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Token-gated branded proposal page. The design mirrors the HighCraft\n// commercial deck: near-black background, coral accent, Mulish display caps.\nconst q = $('Proposal page hit').first().json.query || {};\nconst rows = $input.all().map(i => i.json).filter(r => r && r.id !== undefined && r.page_token);\nconst row = rows[0];\n\nfunction esc(s) {\n  return String(s ?? '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' }[c]));\n}\n\nconst LABELS = {\n  en: { eyebrow: 'Commercial proposal', prepared: 'Prepared for', heard: 'What we heard', solution: 'Proposed solution', first: 'The first step', timeline: 'Timeline', proof: 'Proof it works', relevance: 'Why this matters here', why: 'Why HighCraft', investment: 'Investment', next: 'Next steps', slots: 'Suggested call slots', reply: 'Reply to schedule the call', by: 'Prepared by', confidential: 'Prepared exclusively for', date: 'Date' },\n  uk: { eyebrow: 'Комерційна пропозиція', prepared: 'Підготовлено для', heard: 'Що ми почули', solution: 'Запропоноване рішення', first: 'Перший крок', timeline: 'Таймлайн', proof: 'Підтверджений досвід', relevance: 'Чому це важливо саме тут', why: 'Чому HighCraft', investment: 'Інвестиція', next: 'Наступні кроки', slots: 'Пропоновані слоти для дзвінка', reply: 'Відповісти та узгодити дзвінок', by: 'Підготував', confidential: 'Підготовлено ексклюзивно для', date: 'Дата' },\n  ru: { eyebrow: 'Коммерческое предложение', prepared: 'Подготовлено для', heard: 'Что мы услышали', solution: 'Предлагаемое решение', first: 'Первый шаг', timeline: 'Таймлайн', proof: 'Подтверждённый опыт', relevance: 'Почему это важно здесь', why: 'Почему HighCraft', investment: 'Инвестиция', next: 'Следующие шаги', slots: 'Предлагаемые слоты для звонка', reply: 'Ответить и назначить звонок', by: 'Подготовил', confidential: 'Подготовлено эксклюзивно для', date: 'Дата' }\n};\n\nconst NOT_FOUND = '<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"robots\" content=\"noindex,nofollow\"><title>Not found</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#06090F;color:#e8e8e8;font-family:Inter,-apple-system,sans-serif}div{text-align:center}h1{font-size:20px;font-weight:600}p{color:#9aa3b2;font-size:14px}a{color:#FF5757}</style></head><body><div><h1>This proposal link is not available.</h1><p>Check the link, or write to <a href=\"mailto:business@highcraft.io\">business@highcraft.io</a>.</p></div></body></html>';\n\nlet status_code = 200;\nlet html = '';\n\nif (!row || !q.t || String(q.t) !== String(row.page_token) || !row.proposal_json) {\n  status_code = 404;\n  html = NOT_FOUND;\n} else {\n  const p = JSON.parse(row.proposal_json);\n  const _lang = String(p.language || 'en').toLowerCase().slice(0,2).replace('ua','uk');\n  const L = LABELS[_lang] || LABELS.en;\n  const dateStr = (row.received_at || '').slice(0, 10);\n  const mailSubject = encodeURIComponent('Re: ' + (p.title || 'Proposal'));\n\n  const heard = (p.what_we_heard || []).map(b => '<li>' + esc(b) + '</li>').join('');\n  const pillars = (p.proposed_solution || []).map(s => '<div class=\"pillar\"><h3>' + esc(s.title) + '</h3><p>' + esc(s.desc) + '</p></div>').join('');\n  const firstBullets = ((p.first_step && p.first_step.bullets) || []).map(b => '<li>' + esc(b) + '</li>').join('');\n  const phases = (p.timeline || []).map((t, i) => '<div class=\"phase\"><div class=\"chip chip-' + Math.min(i, 2) + '\">' + (i + 1) + '</div><div class=\"phase-body\"><div class=\"phase-head\"><span class=\"phase-name\">' + esc(t.phase) + '</span><span class=\"phase-dur\">' + esc(t.duration) + '</span></div><p>' + esc(t.desc) + '</p></div></div>').join('');\n  const cs = p.case_study || {};\n  const metrics = (cs.metrics || []).map(m => '<div class=\"metric\"><div class=\"metric-value\">' + esc(m.value) + '</div><div class=\"metric-label\">' + esc(m.label) + '</div></div>').join('');\n  const why = (p.why_us || []).map(b => '<li>' + esc(b) + '</li>').join('');\n  const steps = (p.next_steps || []).map((s, i) => '<li><span class=\"step-num\">' + (i + 1) + '</span>' + esc(s) + '</li>').join('');\n  const slots = (p.call_slots || []).map(s => '<a class=\"slot\" href=\"mailto:business@highcraft.io?subject=' + mailSubject + '\">' + esc(s) + '</a>').join('');\n\n  html = '<!doctype html><html lang=\"' + esc(p.language || 'en') + '\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"robots\" content=\"noindex,nofollow\"><title>' + esc(p.title || 'Proposal') + ' · HighCraft.io</title><link rel=\"preconnect\" href=\"https://fonts.googleapis.com\"><link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin><link href=\"https://fonts.googleapis.com/css2?family=Mulish:wght@600;800;900&family=Inter:wght@400;600&display=swap\" rel=\"stylesheet\"><style>' +\n  '*{box-sizing:border-box;margin:0;padding:0}' +\n  'body{background:#06090F;color:#F4F4F2;font-family:Inter,-apple-system,\"Segoe UI\",sans-serif;font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}' +\n  'body::before{content:\"\";position:fixed;inset:0;background:linear-gradient(115deg,#0D1015 0%,#080A0F 48%,#15171B 100%),radial-gradient(600px 400px at 85% 90%,rgba(63,63,64,.5),transparent 70%);z-index:-1}' +\n  '.wrap{max-width:860px;margin:0 auto;padding:0 28px}' +\n  'header{padding:34px 0;display:flex;align-items:center;justify-content:space-between}' +\n  '.logo{display:flex;align-items:center;gap:12px;text-decoration:none}' +\n  '.logo-mark{width:30px;height:30px;border-radius:7px;background:#FF5757;position:relative;overflow:hidden}' +\n  '.logo-mark::after{content:\"\";position:absolute;left:13px;top:-6px;width:5px;height:44px;background:#06090F;transform:rotate(24deg)}' +\n  '.logo-name{font-family:Mulish,sans-serif;font-weight:900;letter-spacing:.14em;color:#fff;font-size:15px}' +\n  '.h-date{color:#5E5E5E;font-family:Mulish,sans-serif;font-weight:800;letter-spacing:.2em;font-size:12px;text-transform:uppercase}' +\n  '.hero{padding:64px 0 56px;border-bottom:1px solid rgba(125,158,237,.18)}' +\n  '.eyebrow{font-family:Mulish,sans-serif;font-weight:800;letter-spacing:.32em;text-transform:uppercase;font-size:12px;color:#FF5757;margin-bottom:22px}' +\n  'h1{font-family:Mulish,sans-serif;font-weight:900;text-transform:uppercase;font-size:clamp(30px,5.4vw,52px);line-height:1.08;letter-spacing:.01em;color:#fff}' +\n  '.prepared{margin-top:26px;color:#9aa3b2;font-size:15px}' +\n  '.prepared b{color:#fff;font-weight:600}' +\n  'section{padding:52px 0;border-bottom:1px solid rgba(255,255,255,.06)}' +\n  'h2{font-family:Mulish,sans-serif;font-weight:900;text-transform:uppercase;letter-spacing:.12em;font-size:19px;color:#fff;padding-left:16px;border-left:2px solid #7D9EED;margin-bottom:26px}' +\n  'ul.checks{list-style:none}' +\n  'ul.checks li{position:relative;padding-left:30px;margin-bottom:12px;color:#D8DADE}' +\n  'ul.checks li::before{content:\"\";position:absolute;left:0;top:9px;width:14px;height:8px;border-left:2.5px solid #FF5757;border-bottom:2.5px solid #FF5757;transform:rotate(-45deg)}' +\n  '.pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}' +\n  '.pillar{border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:22px;background:rgba(255,255,255,.025)}' +\n  '.pillar h3{font-family:Mulish,sans-serif;font-weight:800;font-size:16px;color:#fff;margin-bottom:10px}' +\n  '.pillar p{color:#AEB2B9;font-size:14.5px}' +\n  '.first-card{border:1px solid rgba(255,87,87,.45);border-radius:14px;padding:28px;background:linear-gradient(160deg,rgba(255,87,87,.08),rgba(255,87,87,.02))}' +\n  '.first-card .fc-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:16px}' +\n  '.first-card .fc-title{font-family:Mulish,sans-serif;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#fff;font-size:17px}' +\n  '.first-card .fc-dur{color:#FF5757;font-family:Mulish,sans-serif;font-weight:800;font-size:13px;letter-spacing:.18em;text-transform:uppercase}' +\n  '.phase{display:flex;gap:18px;margin-bottom:6px}' +\n  '.chip{flex:0 0 40px;width:40px;height:40px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-family:Mulish,sans-serif;font-weight:900;font-size:15px}' +\n  '.chip-0{background:#28292D;color:#fff}.chip-1{background:#7C7676;color:#0B1837}.chip-2{background:#9FA0A4;color:#0B1837}' +\n  '.phase-body{padding-bottom:26px;border-left:1px solid rgba(255,255,255,.1);margin-left:-38px;padding-left:56px;flex:1}' +\n  '.phase:last-child .phase-body{border-left-color:transparent}' +\n  '.phase-head{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}' +\n  '.phase-name{font-family:Mulish,sans-serif;font-weight:800;color:#fff;font-size:15.5px}' +\n  '.phase-dur{color:#2197BD;font-weight:600;font-size:13.5px;white-space:nowrap}' +\n  '.phase-body p{color:#AEB2B9;font-size:14.5px;margin-top:6px}' +\n  '.case{border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:28px;background:rgba(255,255,255,.02)}' +\n  '.case h3{font-family:Mulish,sans-serif;font-weight:800;color:#fff;font-size:16.5px;margin-bottom:12px}' +\n  '.case p{color:#C6C9CE;font-size:15px}' +\n  '.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin:24px 0 6px}' +\n  '.metric-value{font-family:Mulish,sans-serif;font-weight:900;font-size:42px;color:#FF5757;line-height:1}' +\n  '.metric-label{color:#9aa3b2;font-size:13px;margin-top:8px}' +\n  '.relevance{margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.08);color:#D8DADE;font-size:14.5px}' +\n  '.relevance b{color:#7D9EED;font-weight:600}' +\n  '.invest{font-size:16.5px;color:#E6E8EB;max-width:60ch}' +\n  'ol.steps{list-style:none;counter-reset:s}' +\n  'ol.steps li{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;color:#D8DADE}' +\n  '.step-num{flex:0 0 26px;width:26px;height:26px;border-radius:50%;border:1.5px solid #FF5757;color:#FF5757;display:flex;align-items:center;justify-content:center;font-family:Mulish,sans-serif;font-weight:800;font-size:13px;margin-top:1px}' +\n  '.slots-label{margin-top:26px;color:#9aa3b2;font-size:13px;text-transform:uppercase;letter-spacing:.18em;font-family:Mulish,sans-serif;font-weight:800}' +\n  '.slots{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px}' +\n  '.slot{background:#fff;color:#06090F;border-radius:999px;padding:11px 22px;font-weight:600;font-size:14.5px;text-decoration:none}' +\n  '.slot:hover{background:#FF5757;color:#fff}' +\n  '.closing{text-align:center;padding:72px 0 30px;border-bottom:none}' +\n  '.rule{width:180px;height:2px;background:#F27100;margin:0 auto}' +\n  '.closing h2{border:none;padding:26px 0;font-size:clamp(22px,4vw,34px);letter-spacing:.06em;margin:0}' +\n  'footer{padding:26px 0 48px;text-align:center;color:#5E5E5E;font-size:13px}' +\n  'footer a{color:#9aa3b2;text-decoration:none}' +\n  'footer .conf{margin-top:10px;font-size:12px}' +\n  '@media print{body{background:#fff;color:#111}body::before{display:none}.pillar,.case,.first-card{background:#fff;border-color:#ddd}h1,h2,.logo-name,.pillar h3,.phase-name,.case h3,.first-card .fc-title{color:#111}.slot{border:1px solid #111}section{border-color:#eee}}' +\n  '</style></head><body><div class=\"wrap\">' +\n  '<header><a class=\"logo\" href=\"https://highcraft.io\"><span class=\"logo-mark\"></span><span class=\"logo-name\">HIGHCRAFT.IO</span></a><span class=\"h-date\">' + esc(dateStr) + '</span></header>' +\n  '<div class=\"hero\"><div class=\"eyebrow\">' + L.eyebrow + '</div><h1>' + esc(p.title || 'Proposal') + '</h1><p class=\"prepared\">' + L.prepared + ' <b>' + esc(p.client_company || '') + '</b>' + (p.client_name ? ' · ' + esc(p.client_name) : '') + '</p></div>' +\n  '<section><h2>' + L.heard + '</h2><ul class=\"checks\">' + heard + '</ul></section>' +\n  '<section><h2>' + L.solution + '</h2><div class=\"pillars\">' + pillars + '</div></section>' +\n  '<section><h2>' + L.first + '</h2><div class=\"first-card\"><div class=\"fc-head\"><span class=\"fc-title\">AI Prototype Sprint</span><span class=\"fc-dur\">' + esc((p.first_step && p.first_step.duration) || 'two weeks') + '</span></div><ul class=\"checks\">' + firstBullets + '</ul></div></section>' +\n  '<section><h2>' + L.timeline + '</h2>' + phases + '</section>' +\n  (cs.title ? '<section><h2>' + L.proof + '</h2><div class=\"case\"><h3>' + esc(cs.title) + '</h3><p>' + esc(cs.body || '') + '</p><div class=\"metrics\">' + metrics + '</div>' + (cs.relevance ? '<p class=\"relevance\"><b>' + L.relevance + ':</b> ' + esc(cs.relevance) + '</p>' : '') + '</div></section>' : '') +\n  '<section><h2>' + L.why + '</h2><ul class=\"checks\">' + why + '</ul></section>' +\n  '<section><h2>' + L.investment + '</h2><p class=\"invest\">' + esc(p.investment_note || '') + '</p></section>' +\n  '<section><h2>' + L.next + '</h2><ol class=\"steps\">' + steps + '</ol><div class=\"slots-label\">' + L.slots + '</div><div class=\"slots\">' + slots + '</div></section>' +\n  '<div class=\"closing\"><div class=\"rule\"></div><h2>Show, don\\'t claim.</h2><div class=\"rule\"></div></div>' +\n  '<footer><span>' + L.by + ' </span><a href=\"https://highcraft.io\">HighCraft.io</a> · <a href=\"mailto:business@highcraft.io\">business@highcraft.io</a><div class=\"conf\">' + L.confidential + ' ' + esc(p.client_company || '') + '.</div></footer>' +\n  '</div></body></html>';\n}\n\nreturn [{ json: { html, status_code } }];"
+      }
+    },
+    {
+      "id": "d29e73e7-d5f0-42f6-9742-957d7743bf39",
+      "name": "Serve page",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.html }}",
+        "options": {
+          "responseCode": "={{ $json.status_code }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "content-type",
+                "value": "text/html; charset=utf-8"
+              },
+              {
+                "name": "cache-control",
+                "value": "no-store"
+              }
+            ]
+          },
+          "enableStreaming": false
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Proposal page hit": {
+      "main": [
+        [
+          {
+            "node": "Get proposal row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get proposal row": {
+      "main": [
+        [
+          {
+            "node": "Render proposal page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render proposal page": {
+      "main": [
+        [
+          {
+            "node": "Serve page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
