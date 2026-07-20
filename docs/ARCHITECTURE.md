@@ -114,6 +114,11 @@ proposal_json, page_token, proposal_page_url, approval_resume_url
 - A second-LLM "stress-tester" node that scores the proposal 0-10 and regenerates
   below a threshold.
 - Deeper enrichment (multi-page crawl, Firecrawl, or an enrichment API).
+- Person-level LinkedIn: the form's existing name + email + company are enough,
+  but do it with an email-based person-enrichment API (Proxycurl / Apollo / Clay,
+  ~1-2s, exact match), not a search-engine scrape: Google bot-walls
+  linkedin.com/in queries and scraper runs queue under load, so the search route
+  is too slow and too empty for person profiles.
 - An OpenRouter fallback model for graceful degradation.
 - Reply-intent classification (warm / clarifying / ready-for-call / objection /
   decline) to route follow-ups.
