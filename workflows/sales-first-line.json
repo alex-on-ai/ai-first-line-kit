@@ -226,7 +226,8 @@
             "timeline": "={{ $(\"Prep context\").first().json.timeline }}",
             "proposal_json": "",
             "page_token": "",
-            "proposal_page_url": ""
+            "proposal_page_url": "",
+            "company_logo_url": "={{ $(\"Distill LinkedIn\").first().json.logo_url ?? \"\" }}"
           },
           "schema": [
             {
@@ -430,6 +431,15 @@
             {
               "id": "proposal_page_url",
               "displayName": "proposal_page_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company_logo_url",
+              "displayName": "company_logo_url",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -985,7 +995,7 @@
         272
       ],
       "parameters": {
-        "jsCode": "// Boil the fetched homepage down to a short research summary the qualifier can\n// use. Empty summary when the fetch failed or returned nothing useful.\nconst base = $('Prep context').first().json;\nlet research_summary = '';\ntry {\n  const resp = $input.first().json || {};\n  const html = typeof resp.data === 'string' ? resp.data : (typeof resp.body === 'string' ? resp.body : '');\n  if (html && html.length > 100) {\n    const title = (html.match(/<title[^>]*>([^<]*)<\\/title>/i) || [])[1] || '';\n    const descMatch = html.match(/<meta[^>]+name=[\"']description[\"'][^>]*content=[\"']([^\"']*)[\"']/i) || html.match(/<meta[^>]+content=[\"']([^\"']*)[\"'][^>]*name=[\"']description[\"']/i);\n    const desc = (descMatch || [])[1] || '';\n    const text = html\n      .replace(/<script[\\s\\S]*?<\\/script>/gi, ' ')\n      .replace(/<style[\\s\\S]*?<\\/style>/gi, ' ')\n      .replace(/<[^>]+>/g, ' ')\n      .replace(/&[a-zA-Z#0-9]+;/g, ' ')\n      .replace(/\\s+/g, ' ')\n      .trim();\n    const parts = [];\n    if (title.trim()) parts.push('Site title: ' + title.trim());\n    if (desc.trim()) parts.push('Meta description: ' + desc.trim());\n    if (text) parts.push('Page text: ' + text.slice(0, 1500));\n    research_summary = parts.join('\\n').slice(0, 1900);\n  }\n} catch (e) {\n  research_summary = '';\n}\nreturn [{ json: { ...base, research_summary } }];"
+        "jsCode": "// Boil the fetched homepage down to a short research summary the qualifier can\n// use. Empty summary when the fetch failed or returned nothing useful.\nconst base = $('Prep context').first().json;\nlet research_summary = '';\ntry {\n  const resp = $input.first().json || {};\n  const html = typeof resp.data === 'string' ? resp.data : (typeof resp.body === 'string' ? resp.body : '');\n  if (html && html.length > 100) {\n    const title = (html.match(/<title[^>]*>([^<]*)<\\/title>/i) || [])[1] || '';\n    const descMatch = html.match(/<meta[^>]+name=[\"']description[\"'][^>]*content=[\"']([^\"']*)[\"']/i) || html.match(/<meta[^>]+content=[\"']([^\"']*)[\"'][^>]*name=[\"']description[\"']/i);\n    const desc = (descMatch || [])[1] || '';\n    const text = html\n      .replace(/<script[\\s\\S]*?<\\/script>/gi, ' ')\n      .replace(/<style[\\s\\S]*?<\\/style>/gi, ' ')\n      .replace(/<[^>]+>/g, ' ')\n      .replace(/&[a-zA-Z#0-9]+;/g, ' ')\n      .replace(/\\s+/g, ' ')\n      .trim();\n    const parts = [];\n    if (title.trim()) parts.push('Site title: ' + title.trim());\n    if (desc.trim()) parts.push('Meta description: ' + desc.trim());\n    if (text) parts.push('Page text: ' + text.slice(0, 1500));\n    research_summary = parts.join('\\n').slice(0, 1900);\n  }\n} catch (e) {\n  research_summary = '';\n}\n// Company logo, parsed from the same homepage (Kuts L11: logo in the proposal\n// preview raises open rates). Priority: apple-touch-icon (square) > og:image >\n// favicon; Google favicon service as a last resort when the page had no icon.\nlet logo_url = '';\ntry {\n  const resp2 = $input.first().json || {};\n  const html2 = typeof resp2.data === 'string' ? resp2.data : (typeof resp2.body === 'string' ? resp2.body : '');\n  if (html2 && html2.length > 100) {\n    const pick = (re) => { const m = html2.match(re); return m ? m[1] : ''; };\n    const cand = pick(/<link[^>]+rel=[\"']apple-touch-icon[^\"']*[\"'][^>]+href=[\"']([^\"']+)[\"']/i)\n      || pick(/<meta[^>]+property=[\"']og:image[\"'][^>]+content=[\"']([^\"']+)[\"']/i)\n      || pick(/<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+property=[\"']og:image[\"']/i)\n      || pick(/<link[^>]+rel=[\"'](?:shortcut )?icon[\"'][^>]+href=[\"']([^\"']+)[\"']/i);\n    if (cand) { try { logo_url = new URL(cand, base.research_url).href; } catch (e) {} }\n    if (!logo_url && base.research_url) {\n      try { logo_url = 'https://www.google.com/s2/favicons?domain=' + new URL(base.research_url).hostname + '&sz=128'; } catch (e) {}\n    }\n  }\n} catch (e) {}\nreturn [{ json: { ...base, research_summary, logo_url } }];"
       }
     },
     {

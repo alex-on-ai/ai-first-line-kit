@@ -73,6 +73,13 @@ Webhook `GET /webhook/proposal?id=<row>&t=<token>`. Reads the `sales_leads` row,
 checks the token, and renders a branded HTML proposal page from `proposal_json`.
 Returns 404 without a valid token. Localized labels for EN / UK / RU.
 
+Personalization (Kuts, Lesson 11: parse the client's logo from their site, it
+raises open rates): the main flow extracts the company logo from the fetched
+homepage (apple-touch-icon > og:image > favicon), stores it on the row, and the
+page shows it in a white client chip next to the company name. The page also
+sets `og:title` / `og:description` / `og:image`, so the proposal LINK unfurls in
+email and messengers with the client's own name and logo.
+
 ## `automation-errors`
 
 An Error Trigger. Any linked workflow failure sends a Telegram message with the
@@ -90,7 +97,7 @@ fit (boolean), score (number), why, reply_draft, decline_draft,
 status, proposal_url,
 signals, timing, company_summary,
 site_lead_id, callback_url, project_type, budget, timeline,
-proposal_json, page_token, proposal_page_url, approval_resume_url
+proposal_json, page_token, proposal_page_url, approval_resume_url, company_logo_url
 ```
 
 `status` values: `new`, `proposal_drafted`, `owner_rejected`,
