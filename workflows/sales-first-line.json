@@ -1093,7 +1093,10 @@
           "value": {
             "proposal_json": "={{ $json.proposal_json }}",
             "page_token": "={{ $json.page_token }}",
-            "proposal_page_url": "={{ $json.proposal_page_url }}"
+            "proposal_page_url": "={{ $json.proposal_page_url }}",
+            "person_photo_url": "={{ $(\"Distill person\").first().json.person_photo_url ?? \"\" }}",
+            "person_linkedin_url": "={{ $(\"Distill person\").first().json.person_linkedin_url ?? \"\" }}",
+            "person_headline": "={{ $(\"Distill person\").first().json.person_headline ?? \"\" }}"
           },
           "schema": [
             {
@@ -1117,6 +1120,33 @@
             {
               "id": "proposal_page_url",
               "displayName": "proposal_page_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "person_photo_url",
+              "displayName": "person_photo_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "person_linkedin_url",
+              "displayName": "person_linkedin_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "person_headline",
+              "displayName": "person_headline",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -1419,6 +1449,41 @@
         4192,
         320
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($(\"Normalize inquiry\").first().json.name && $(\"Normalize inquiry\").first().json.name.trim().split(/\\s+/).length > 1 && $(\"Normalize inquiry\").first().json.company && $(\"Normalize inquiry\").first().json.company !== \"-\") ? \"https://api.apify.com/v2/acts/harvestapi~linkedin-profile-search-by-name/run-sync-get-dataset-items?token=YOUR_APIFY_TOKEN&timeout=50\" : \"https://person-skipped.invalid\" }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ firstName: $(\"Normalize inquiry\").first().json.name.trim().split(/\\s+/)[0], lastName: $(\"Normalize inquiry\").first().json.name.trim().split(/\\s+/).slice(1).join(\" \"), companyName: $(\"Normalize inquiry\").first().json.company, maxItems: 1, profileScraperMode: \"Short\" }) }}",
+        "options": {
+          "timeout": 45000
+        }
+      },
+      "id": "findperson001",
+      "name": "Find person photo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2416,
+        336
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Keep the LinkedIn person hit only when it plausibly IS the inquirer:\n// name tokens must appear in the result name, and the company must appear in\n// their position line. Wrong person = empty fields, page renders without.\nconst lead = $('Normalize inquiry').first().json;\nlet person_photo_url = '', person_linkedin_url = '', person_headline = '';\ntry {\n  const items = $input.all().map(i => i.json).filter(j => j && (j.name || j.photo));\n  const hit = items[0];\n  if (hit) {\n    const rname = String(hit.name || '').toLowerCase();\n    const tokens = String(lead.name || '').toLowerCase().trim().split(/\\s+/).filter(Boolean);\n    const nameOk = tokens.length > 1 && tokens.every(t => rname.includes(t));\n    const pos = String(hit.position || '').toLowerCase();\n    const companyToken = String(lead.company || '').toLowerCase().replace(/\\b(inc|llc|ltd|gmbh|clinics?|health)\\b/g, ' ').trim().split(/\\s+/)[0] || '';\n    const companyOk = companyToken.length > 2 && (pos.includes(companyToken) || String(lead.company||'').toLowerCase().split(/\\s+/).some(w => w.length > 3 && pos.includes(w)));\n    if (nameOk && companyOk) {\n      person_photo_url = String(hit.photo || '');\n      person_linkedin_url = String(hit.linkedinUrl || '');\n      person_headline = String(hit.position || '').slice(0, 140);\n    }\n  }\n} catch (e) {}\nreturn [{ json: { person_photo_url, person_linkedin_url, person_headline } }];"
+      },
+      "id": "distillperson1",
+      "name": "Distill person",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        336
+      ]
     }
   ],
   "connections": {
@@ -1499,7 +1564,7 @@
       "main": [
         [
           {
-            "node": "Draft proposal",
+            "node": "Find person photo",
             "type": "main",
             "index": 0
           }
@@ -1818,6 +1883,28 @@
         [
           {
             "node": "Report drafted to site",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find person photo": {
+      "main": [
+        [
+          {
+            "node": "Distill person",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Distill person": {
+      "main": [
+        [
+          {
+            "node": "Draft proposal",
             "type": "main",
             "index": 0
           }

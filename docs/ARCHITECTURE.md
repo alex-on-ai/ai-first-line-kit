@@ -125,11 +125,13 @@ proposal_json, page_token, proposal_page_url, approval_resume_url, company_logo_
 - A second-LLM "stress-tester" node that scores the proposal 0-10 and regenerates
   below a threshold.
 - Deeper enrichment (multi-page crawl, Firecrawl, or an enrichment API).
-- Person-level LinkedIn: the form's existing name + email + company are enough,
-  but do it with an email-based person-enrichment API (Proxycurl / Apollo / Clay,
-  ~1-2s, exact match), not a search-engine scrape: Google bot-walls
-  linkedin.com/in queries and scraper runs queue under load, so the search route
-  is too slow and too empty for person profiles.
+- ~~Person-level LinkedIn~~ SHIPPED via `harvestapi/linkedin-profile-search-by-name`
+  (the course's recommended enrichment layer): after the owner approves, one
+  actor call finds the inquirer by name + company, a match guard checks the name
+  AND the company appear in the result, and the proposal page shows their round
+  LinkedIn photo + headline next to the company chip. Runs post-approve so its
+  ~30s never delays the qualification card. An email-based API (Apollo people
+  match) remains the more exact upgrade if precision ever disappoints.
 - An OpenRouter fallback model for graceful degradation.
 - Reply-intent classification (warm / clarifying / ready-for-call / objection /
   decline) to route follow-ups.
