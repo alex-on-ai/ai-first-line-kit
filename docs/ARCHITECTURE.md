@@ -60,6 +60,10 @@ resumes the waiting main execution) -> answer the callback (instant toast) ->
 edit the card to "✅ APPROVED" / "❌ REJECTED" and drop the buttons.
 
 Two gotchas baked in:
+- **Do not use the trigger's chat-id restriction for buttons.** n8n's Telegram
+  Trigger `chatIds` filter checks the wrong path for `callback_query` updates and
+  silently drops the tap (200 to Telegram, no execution). The owner check lives
+  in the "Parse tap" Code node instead.
 - **One webhook per bot.** Activating the Telegram Trigger registers the bot's
   webhook to n8n. If any other integration (a site chat widget, another tool)
   re-registers that bot's webhook, the buttons silently die. One bot, one job.
