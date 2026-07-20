@@ -183,7 +183,7 @@
         "messageType": "message",
         "chatId": "={{ $(\"Parse tap\").first().json.chat_id }}",
         "messageId": "={{ $(\"Parse tap\").first().json.message_id }}",
-        "text": "={{ $(\"Parse tap\").first().json.orig_text_esc + \"\\n\\n\" + ($(\"Resume main flow\").first().json.statusCode === 200 ? ($(\"Parse tap\").first().json.decision === \"apr\" ? \"✅ APPROVED\" : \"❌ REJECTED\") : \"⚠️ Already handled earlier\") }}",
+        "text": "={{ ($(\"Resume main flow\").first().json.statusCode === 200 ? ($(\"Parse tap\").first().json.decision === \"apr\" ? \"✅ <b>APPROVED</b>: drafting the proposal…\" : \"❌ <b>REJECTED</b>: archived\") : \"⚠️ <b>Already handled earlier</b>\") + \"\\n\\n\" + ($(\"Parse tap\").first().json.orig_text_esc.split(\"\\n\")[0] || \"\") }}",
         "replyMarkup": "none",
         "additionalFields": {
           "parse_mode": "HTML"

@@ -15,6 +15,11 @@ Lead received (webhook)
   -> Fetch lead website          (HTTP GET the homepage, 8s timeout, continue-on-fail)
   -> Distill research            (extract title, meta description, first h1, text
                                   -> a short PUBLIC RESEARCH block; empty if failed)
+  -> Find LinkedIn               (Google search via Apify for the company's
+                                  linkedin.com/company page; 25s timeout, optional)
+  -> Distill LinkedIn            (first company-page hit: url + title + snippet
+                                  folded into the research; the qualifier is told to
+                                  IGNORE it if it describes a different company)
   -> Owner chat config           (your Telegram chat id)
   -> Qualify against ICP         (LLM, strict JSON: fit/score/why/signals/timing/
                                   company_summary/reply_draft/decline_draft)
